@@ -3,19 +3,22 @@ import { supabase } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { profileId: string } }
+  { params }: { params: Promise<{ profileId: string }> }
 ) {
   try {
+    // Await params para Next.js 15
+    const { profileId } = await params
+    
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    console.log('API Posts - Params:', { profileId: params.profileId, limit, offset })
+    console.log('API Posts - Params:', { profileId, limit, offset })
 
     const { data, error, count } = await supabase
       .from('posts')
       .select('*', { count: 'exact' })
-      .eq('profile_id', params.profileId)
+      .eq('profile_id', profileId)
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)

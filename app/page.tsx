@@ -1,8 +1,8 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Lock, Users, ImageIcon, Shield } from 'lucide-react'
+import { SiteLogo } from '@/components/site-logo'
 
 export default function HomePage() {
   return (
@@ -11,14 +11,7 @@ export default function HomePage() {
       <div className="bg-white border-b border-gray-200 py-4">
         <div className="container mx-auto px-4">
           <div className="flex justify-center">
-            <Image
-              src="/images/privacy-logo.webp"
-              alt="Privacy"
-              width={200}
-              height={60}
-              className="h-12 w-auto"
-              priority
-            />
+            <SiteLogo size="md" />
           </div>
         </div>
       </div>
@@ -180,4 +173,30 @@ export default function HomePage() {
       </div>
     </div>
   )
+}
+
+// Adicionar metadata para SEO e compartilhamento
+export const metadata = {
+  title: 'Privacy - Plataforma de Perfis Privados',
+  description: 'Plataforma de perfis privados com conteúdo exclusivo. Acesso controlado por token para máxima privacidade.',
+  keywords: 'perfis privados, conteúdo exclusivo, tokens de acesso, privacidade',
+  authors: [{ name: 'Privacy Platform' }],
+  creator: 'Privacy Platform',
+  publisher: 'Privacy Platform',
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'pt_BR',
+    title: 'Privacy - Plataforma de Perfis Privados',
+    description: 'Plataforma de perfis privados com conteúdo exclusivo.',
+    siteName: 'Privacy',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Privacy - Plataforma de Perfis Privados',
+    description: 'Plataforma de perfis privados com conteúdo exclusivo.',
+  },
 }

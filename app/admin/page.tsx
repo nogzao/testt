@@ -1,15 +1,24 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Users, ImageIcon, Plus, Settings, Key, Eye, Calendar } from 'lucide-react'
+import { Users, ImageIcon, Plus, Settings, Key, Eye, Calendar, AlertTriangle } from 'lucide-react'
+import { SiteLogo } from '@/components/site-logo'
 
 export default async function AdminDashboard() {
   try {
-    // Buscar estatísticas
-    const { data: profiles, error: profilesError } = await supabase
+    // Verificar se as variáveis de ambiente estão configuradas
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      throw new Error('Variáveis de ambiente do Supabase não configuradas')
+    }
+
+    // Buscar estatísticas com timeout
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout na consulta ao banco')), 10000)
+    )
+
+    const profilesPromise = supabase
       .from('profiles')
       .select(`
         id, 
@@ -28,27 +37,43 @@ export default async function AdminDashboard() {
       .eq('is_active', true)
       .order('created_at', { ascending: false })
 
+    const { data: profiles, error: profilesError } = await Promise.race([
+      profilesPromise,
+      timeoutPromise
+    ]) as any
+
     if (profilesError) {
       console.error('Error fetching profiles:', profilesError)
+      throw new Error(`Erro ao buscar perfis: ${profilesError.message}`)
     }
 
-    const { count: totalPosts } = await supabase
-      .from('posts')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true)
+    // Buscar contadores com fallback
+    let totalPosts = 0
+    let totalTokens = 0
+    let totalAccess = 0
 
-    const { count: totalTokens } = await supabase
-      .from('access_tokens')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true)
+    try {
+      const { count: postsCount } = await supabase
+        .from('posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true)
+      totalPosts = postsCount || 0
 
-    // Calcular total de acessos
-    const { data: tokenStats } = await supabase
-      .from('access_tokens')
-      .select('access_count')
-      .eq('is_active', true)
+      const { count: tokensCount } = await supabase
+        .from('access_tokens')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true)
+      totalTokens = tokensCount || 0
 
-    const totalAccess = tokenStats?.reduce((sum, token) => sum + token.access_count, 0) || 0
+      const { data: tokenStats } = await supabase
+        .from('access_tokens')
+        .select('access_count')
+        .eq('is_active', true)
+      totalAccess = tokenStats?.reduce((sum, token) => sum + token.access_count, 0) || 0
+    } catch (statsError) {
+      console.warn('Error fetching stats:', statsError)
+      // Continuar com valores padrão
+    }
 
     return (
       <div className="min-h-screen bg-gray-50">
@@ -56,14 +81,7 @@ export default async function AdminDashboard() {
         <div className="bg-white border-b border-gray-200 py-4">
           <div className="container mx-auto px-4">
             <div className="flex justify-center">
-              <Image
-                src="/images/privacy-logo.webp"
-                alt="Privacy"
-                width={200}
-                height={60}
-                className="h-12 w-auto"
-                priority
-              />
+              <SiteLogo size="md" />
             </div>
           </div>
         </div>
@@ -96,7 +114,7 @@ export default async function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-900">{totalPosts || 0}</div>
+                <div className="text-2xl font-bold text-gray-900">{totalPosts}</div>
               </CardContent>
             </Card>
 
@@ -108,7 +126,7 @@ export default async function AdminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-900">{totalTokens || 0}</div>
+                <div className="text-2xl font-bold text-gray-900">{totalTokens}</div>
               </CardContent>
             </Card>
 
@@ -148,7 +166,7 @@ export default async function AdminDashboard() {
                 <div className="space-y-4">
                   {profiles.map((profile) => {
                     const activeTokens = profile.access_tokens?.filter(t => t.is_active) || []
-                    const totalAccess = activeTokens.reduce((sum, token) => sum + token.access_count, 0)
+                    const profileAccess = activeTokens.reduce((sum, token) => sum + token.access_count, 0)
                     const hasExpiredTokens = activeTokens.some(token => 
                       token.expires_at && new Date(token.expires_at) < new Date()
                     )
@@ -169,7 +187,7 @@ export default async function AdminDashboard() {
                           <div className="flex items-center gap-4 text-sm text-gray-500">
                             <span>{profile.followers_count.toLocaleString()} seguidores</span>
                             <span>{activeTokens.length} tokens ativos</span>
-                            <span>{totalAccess} acessos totais</span>
+                            <span>{profileAccess} acessos totais</span>
                           </div>
                         </div>
                         <div className="flex gap-2">
@@ -209,17 +227,43 @@ export default async function AdminDashboard() {
     )
   } catch (error) {
     console.error('Error in AdminDashboard:', error)
+    
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="max-w-md bg-white border-gray-200">
-          <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-bold mb-2 text-gray-900">Erro no Dashboard</h2>
-            <p className="text-gray-600 mb-4">Ocorreu um erro ao carregar o dashboard.</p>
-            <Button asChild className="bg-orange-500 hover:bg-orange-600 text-white">
-              <Link href="/">Voltar ao Início</Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header com Logo */}
+        <div className="bg-white border-b border-gray-200 py-4">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-center">
+              <SiteLogo size="md" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center min-h-[calc(100vh-100px)]">
+          <Card className="max-w-md bg-white border-gray-200 shadow-lg">
+            <CardContent className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-8 h-8 text-red-500" />
+              </div>
+              <h2 className="text-xl font-bold mb-2 text-gray-900">Erro no Dashboard</h2>
+              <p className="text-gray-600 mb-4">
+                {error instanceof Error ? error.message : 'Ocorreu um erro ao carregar o dashboard.'}
+              </p>
+              <div className="space-y-2">
+                <Button asChild className="w-full bg-orange-500 hover:bg-orange-600 text-white">
+                  <Link href="/">Voltar ao Início</Link>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.reload()}
+                  className="w-full border-gray-300 text-gray-600 hover:bg-gray-50"
+                >
+                  Tentar Novamente
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     )
   }

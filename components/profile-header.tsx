@@ -1,7 +1,7 @@
-import Image from 'next/image'
-import { Users, ExternalLink } from 'lucide-react'
+import { Users, ExternalLink, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Profile } from '@/lib/supabase'
+import { SiteLogo } from '@/components/site-logo'
 
 interface ProfileHeaderProps {
   profile: Profile
@@ -20,14 +20,7 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
       <div className="bg-white border-b border-gray-200 py-4">
         <div className="container mx-auto px-4">
           <div className="flex justify-center">
-            <Image
-              src="/images/privacy-logo.webp"
-              alt="Privacy"
-              width={200}
-              height={60}
-              className="h-12 w-auto"
-              priority
-            />
+            <SiteLogo size="md" />
           </div>
         </div>
       </div>
@@ -36,14 +29,17 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
         {/* Banner */}
         <div className="h-48 md:h-64 relative overflow-hidden">
           {profile.banner_image_url ? (
-            <Image
+            <img
               src={profile.banner_image_url || "/placeholder.svg"}
               alt="Banner"
-              fill
-              className="object-cover"
-              priority
+              className="w-full h-full object-cover"
               onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none'
+                const target = e.target as HTMLImageElement
+                target.style.display = 'none'
+                const parent = target.parentElement
+                if (parent) {
+                  parent.innerHTML = '<div class="w-full h-full bg-gradient-to-br from-orange-400 to-orange-600"></div>'
+                }
               }}
             />
           ) : (
@@ -56,17 +52,14 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
         <div className="relative px-4 pb-6 bg-white">
           {/* Profile Picture */}
           <div className="flex justify-center -mt-16 mb-4">
-            <div className="relative">
+            <div className="relative my-0 py-2.5">
               <div className="w-32 h-32 rounded-full border-4 border-white overflow-hidden bg-gray-100 shadow-lg">
                 {profile.profile_image_url ? (
-                  <Image
+                  <img
                     src={profile.profile_image_url || "/placeholder.svg"}
                     alt={profile.display_name}
-                    width={128}
-                    height={128}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover leading-8 my-0 py-0"
                     onError={(e) => {
-                      // Fallback para inicial se a imagem falhar
                       const target = e.target as HTMLImageElement
                       target.style.display = 'none'
                       const parent = target.parentElement

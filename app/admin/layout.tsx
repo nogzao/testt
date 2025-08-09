@@ -11,3 +11,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   )
 }
+
+export const metadata = {
+  title: 'Admin - Privacy Platform',
+  description: 'Dashboard administrativo da plataforma Privacy',
+}
